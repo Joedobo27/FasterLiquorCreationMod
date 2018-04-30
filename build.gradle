@@ -6,7 +6,7 @@ group = 'com.joedobo27'
 version = '1.0.1'
 sourceCompatibility = 1.8
 
-def WUServerPath = "C:\\Program Files (x86)\\Steam\\steamapps\\common\\Wurm Unlimited Dedicated Server\\"
+def WUServerPath = "C:\\Users\\Jason\\Documents\\WU\\WU-Server\\"
 
 repositories {
     mavenCentral()

@@ -92,6 +92,8 @@ public class FasterLiquorCreationMod implements WurmServerMod, PreInitable, Conf
                     .getMethodInfo().getCodeAttribute());
             codeReplacer.replaceCode(find.get(), replace.get());
 
+            boolean[] successes = new boolean[1];
+            Arrays.fill(successes, false);
             final boolean[] setLastMaintained = {false};
             ctClassItem.getDeclaredMethod("pollDistilling").instrument(new ExprEditor() {
                 @Override public void edit(MethodCall methodCall) throws CannotCompileException {
@@ -102,9 +104,14 @@ public class FasterLiquorCreationMod implements WurmServerMod, PreInitable, Conf
                     else if(Objects.equals(methodCall.getMethodName(), "min") && setLastMaintained[0]) {
                         setLastMaintained[0] = false;
                         methodCall.replace("$1 = "+ stillProcessesGrams +"; $_ = $proceed($$);");
+                        successes[0] = true;
                     }
                 }
             });
+            for (boolean b:successes){
+                if (!b)
+                    throw new RuntimeException("pollDistilling method instrument error. " + Arrays.toString(successes));
+            }
 
         } catch (NotFoundException | BadBytecode | CannotCompileException e){
             logger.warning(e.getMessage() + "pollDistilling not changed.");
@@ -148,29 +155,39 @@ public class FasterLiquorCreationMod implements WurmServerMod, PreInitable, Conf
             //if (this.getTemplateId() == 1178 && Server.rand.nextInt(20) == 0) {
             //    this.pollDistilling();
             //}
-            int DistillingTableLineNumber = getTableLineNumberForMethod(ctClassItem, Opcode.INVOKEVIRTUAL,
+            int distillingTableLineNumber = getTableLineNumber(getTableLineNumberForMethod(ctClassItem, Opcode.INVOKEVIRTUAL,
                     "pollDistilling", Descriptor.ofMethod(CtPrimitiveType.voidType, null),
                     "poll", Descriptor.ofMethod(CtPrimitiveType.booleanType, new CtClass[]{
-                            CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.longType})) - 1;
+                            CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.longType})), -1,
+                    ctClassItem.getMethod("poll", Descriptor.ofMethod(CtPrimitiveType.booleanType,
+                            new CtClass[]{CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.longType}))
+                            .getMethodInfo());
 
             //////////////////////
             //if (Server.rand.nextInt(20) == 0) {
             //    this.pollFermenting();
             //}
-            int Fermenting1TableLineNumber = getTableLineNumberForMethod(ctClassItem, Opcode.INVOKEVIRTUAL,
+            int fermenting1TableLineNumber = getTableLineNumber(getTableLineNumberForMethod(ctClassItem, Opcode.INVOKEVIRTUAL,
                     "pollFermenting", Descriptor.ofMethod(CtPrimitiveType.voidType, null),
                     "poll", Descriptor.ofMethod(CtPrimitiveType.booleanType, new CtClass[]{
-                            CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.longType})) - 1;
+                            CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.longType})), -1,
+                    ctClassItem.getMethod("poll", Descriptor.ofMethod(CtPrimitiveType.booleanType,
+                            new CtClass[]{CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.longType}))
+                            .getMethodInfo());
 
             //////////////////////
             //if (Server.rand.nextInt(20) == 0) {
             //    this.pollFermenting();
             //}
-            int Fermenting2TableLineNumber = getTableLineNumberForMethod(ctClassItem, Opcode.INVOKEVIRTUAL,
+            int fermenting2TableLineNumber = getTableLineNumber(getTableLineNumberForMethod(ctClassItem, Opcode.INVOKEVIRTUAL,
                     "pollFermenting", Descriptor.ofMethod(CtPrimitiveType.voidType, null),
                     "poll", Descriptor.ofMethod(CtPrimitiveType.booleanType, new CtClass[]{ctClassItem,
                             CtPrimitiveType.intType, CtPrimitiveType.booleanType, CtPrimitiveType.booleanType,
-                            CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.booleanType})) - 1;
+                            CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.booleanType})), -1,
+                    ctClassItem.getDeclaredMethod("poll",
+                            new CtClass[]{ctClassItem, CtPrimitiveType.intType, CtPrimitiveType.booleanType, CtPrimitiveType.booleanType,
+                                    CtPrimitiveType.booleanType, CtPrimitiveType.booleanType, CtPrimitiveType.booleanType})
+                            .getMethodInfo());
 
             boolean[] poll1successes = new boolean[2];
             Arrays.fill(poll1successes, false);
@@ -179,11 +196,11 @@ public class FasterLiquorCreationMod implements WurmServerMod, PreInitable, Conf
                     .instrument(new ExprEditor() {
                         @Override public void edit(MethodCall methodCall) throws CannotCompileException {
                             if (Objects.equals(methodCall.getMethodName(), "nextInt") &&
-                                    methodCall.getLineNumber() == DistillingTableLineNumber) {
+                                    methodCall.getLineNumber() == distillingTableLineNumber) {
                                 methodCall.replace("$1 = 1; $_ = $proceed($$);");
                                 poll1successes[0] = true;
                             } else if (Objects.equals(methodCall.getMethodName(), "nextInt") &&
-                                    methodCall.getLineNumber() == Fermenting1TableLineNumber) {
+                                    methodCall.getLineNumber() == fermenting1TableLineNumber) {
                                 methodCall.replace("$1 = 1; $_ = $proceed($$);");
                                 poll1successes[1] = true;
                             }
@@ -201,7 +218,7 @@ public class FasterLiquorCreationMod implements WurmServerMod, PreInitable, Conf
                     CtPrimitiveType.booleanType, CtPrimitiveType.booleanType}).instrument(new ExprEditor() {
                         @Override public void edit(MethodCall methodCall) throws CannotCompileException {
                             if (Objects.equals(methodCall.getMethodName(), "nextInt") &&
-                                    methodCall.getLineNumber() == Fermenting2TableLineNumber) {
+                                    methodCall.getLineNumber() == fermenting2TableLineNumber) {
                                 methodCall.replace("$1 = 1; $_ = $proceed($$);");
                                 poll2Successes[0] = true;
                             }
@@ -322,9 +339,22 @@ public class FasterLiquorCreationMod implements WurmServerMod, PreInitable, Conf
         LineNumberAttribute lineNumberAttribute = (LineNumberAttribute) methodInfo.getCodeAttribute()
                 .getAttribute(LineNumberAttribute.tag);
         int lineNumber = lineNumberAttribute.toLineNumber(bytecodeIndex);
-        return IntStream.range(0, lineNumberAttribute.tableLength())
+        int lineNumberTableOrdinal =  IntStream.range(0, lineNumberAttribute.tableLength())
                 .filter(value -> Objects.equals(lineNumberAttribute.lineNumber(value), lineNumber))
                 .findFirst()
                 .orElseThrow(RuntimeException::new);
+        return lineNumberAttribute.lineNumber(lineNumberTableOrdinal);
+    }
+
+    private static int getTableLineNumber(int lineNumber, int offset, MethodInfo methodInfo) throws RuntimeException {
+        LineNumberAttribute lineNumberAttribute = (LineNumberAttribute) methodInfo.getCodeAttribute()
+                .getAttribute(LineNumberAttribute.tag);
+        int lineNumberTableOrdinal = IntStream.range(0, lineNumberAttribute.tableLength())
+                .filter(value -> Objects.equals(lineNumberAttribute.lineNumber(value), lineNumber))
+                .findFirst()
+                .orElseThrow(RuntimeException::new);
+        if (lineNumberTableOrdinal + offset < 0 || lineNumberTableOrdinal + offset > lineNumberAttribute.tableLength() - 1)
+            throw new RuntimeException("offset makes lineNumberTableOrdinal out of bounds.");
+        return lineNumberAttribute.lineNumber(lineNumberTableOrdinal + offset);
     }
 }
